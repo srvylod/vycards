@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12141c">
+<title>New Tab</title>
+<style>
+:root{
+  --bg:#12141c;
+  --surface:#1b1e29;
+  --surface-2:#242835;
+  --text:#eef0f5;
+  --text-dim:#9aa0b4;
+  --accent:#4c7eff;
+  --danger:#e5484d;
+  --radius-sm:12px;
+  --radius-lg:20px;
+  --shortcut-size:52px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button,input{font-family:inherit;}
+button{cursor:pointer;-webkit-appearance:none;appearance:none;}
+svg.i{width:1em;height:1em;display:inline-block;vertical-align:-0.15em;flex-shrink:0;}
+
+#bgLayer{position:fixed;inset:0;z-index:-2;background-color:var(--bg);background-size:cover;background-position:center;transition:background-color .4s ease;}
+#bgOverlay{position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0));transition:background .4s ease;}
+
+.app{
+  max-width:560px;margin:0 auto;min-height:100vh;
+  padding:calc(env(safe-area-inset-top,0px) + 22px) 16px calc(env(safe-area-inset-bottom,0px) + 40px);
+  display:flex;flex-direction:column;gap:24px;
+}
+
+.topbar{display:flex;align-items:center;gap:10px;}
+.icon-btn{
+  width:46px;height:46px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.10);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:center;color:var(--text);font-size:19px;
+  transition:transform .15s ease,background .2s ease;
+}
+.icon-btn:active{transform:scale(.92);background:rgba(255,255,255,.2);}
+
+.searchbar{
+  flex:1;display:flex;align-items:center;gap:10px;height:50px;padding:0 16px;border-radius:26px;
+  border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.10);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:border-color .2s ease;
+}
+.searchbar:focus-within{border-color:var(--accent);}
+.searchbar button{background:none;border:0;color:var(--text-dim);font-size:18px;display:flex;flex-shrink:0;}
+.searchbar input{flex:1;border:0;background:transparent;color:var(--text);font-size:16px;outline:none;min-width:0;}
+.searchbar input::placeholder{color:var(--text-dim);}
+
+.cards{display:flex;flex-direction:column;gap:14px;}
+.card{
+  position:relative;border-radius:var(--radius-lg);min-height:106px;padding:14px 12px;
+  display:flex;align-items:center;gap:12px;overflow:hidden;
+  border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.10);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+.card-options-btn{
+  position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;border:0;
+  background:rgba(0,0,0,.20);color:inherit;font-size:14px;display:flex;align-items:center;justify-content:center;z-index:2;
+}
+.card-scroll{
+  flex:1;min-width:0;display:flex;align-items:flex-start;gap:14px;overflow-x:auto;scroll-behavior:smooth;
+  padding:4px 2px;scrollbar-width:none;
+}
+.card-scroll::-webkit-scrollbar{display:none;}
+.add-shortcut-btn{
+  flex-shrink:0;width:var(--shortcut-size);height:var(--shortcut-size);border-radius:50%;border:1px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.10);color:inherit;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:2;
+  transition:background .15s ease;
+}
+.add-shortcut-btn:active{background:rgba(255,255,255,.18);}
+.shortcut{
+  flex-shrink:0;width:var(--shortcut-size);display:flex;flex-direction:column;align-items:center;gap:6px;
+  text-decoration:none;color:inherit;z-index:2;
+}
+.shortcut-icon{
+  width:var(--shortcut-size);height:var(--shortcut-size);border-radius:50%;background:rgba(255,255,255,.20);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:18px;
+}
+.shortcut-icon img{width:24px;height:24px;object-fit:contain;}
+.shortcut-name{font-size:10.5px;max-width:var(--shortcut-size);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:inherit;opacity:.9;}
+
+.add-card-btn{
+  height:56px;border-radius:var(--radius-lg);border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);color:var(--text-dim);display:flex;align-items:center;justify-content:center;
+  gap:8px;font-size:15px;transition:background .15s ease;
+}
+.add-card-btn:active{background:rgba(255,255,255,.11);}
+
+.empty-hint{padding:6px 4px;color:var(--text-dim);font-size:13.5px;line-height:1.7;text-align:center;}
+
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;
+  transition:opacity .25s ease;z-index:50;display:flex;align-items:flex-end;
+}
+.overlay.open{opacity:1;pointer-events:auto;}
+.sheet{
+  width:100%;max-width:560px;margin:0 auto;background:var(--surface);border-radius:22px 22px 0 0;
+  padding:18px 18px calc(env(safe-area-inset-bottom,0px) + 20px);
+  transform:translateY(100%);transition:transform .32s cubic-bezier(.32,.72,0,1);
+  max-height:86vh;overflow-y:auto;
+}
+.overlay.open .sheet{transform:translateY(0);}
+.sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.sheet-header h2{font-size:17px;font-weight:700;}
+.sheet-close{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.10);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:16px;}
+
+.field{margin-bottom:18px;}
+.field label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:8px;}
+.field input[type=text],.field input[type=url]{
+  width:100%;height:46px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.14);
+  background:var(--surface-2);color:var(--text);padding:0 14px;font-size:16px;outline:none;
+}
+.field input:focus{border-color:var(--accent);}
+
+.pill-row{display:flex;flex-wrap:wrap;gap:8px;}
+.pill{padding:9px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.10);color:var(--text-dim);font-size:13px;}
+.pill.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+.swatch-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.swatch{width:36px;height:36px;border-radius:50%;border:2px solid transparent;outline:2px solid transparent;outline-offset:3px;flex-shrink:0;}
+.swatch.active{outline-color:var(--accent);}
+.custom-color-wrap{display:flex;align-items:center;gap:10px;}
+.custom-color-wrap input[type=color]{width:36px;height:36px;border-radius:50%;border:0;background:none;padding:0;overflow:hidden;}
+
+.btn-row{display:flex;gap:10px;margin-top:4px;}
+.btn{flex:1;height:48px;border-radius:var(--radius-sm);border:0;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-secondary{background:rgba(255,255,255,.10);color:var(--text);border:1px solid rgba(255,255,255,.16);}
+.btn-danger{background:rgba(229,72,77,.16);color:var(--danger);}
+
+.img-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.file-btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.10);color:var(--text);font-size:15px;font-weight:600;}
+input[type=file]{display:none;}
+
+.bg-adjust-capture{
+  position:fixed;inset:0;z-index:40;touch-action:none;
+}
+.bg-adjust-bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:41;
+  display:flex;gap:10px;padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 14px);
+  background:linear-gradient(180deg,rgba(10,11,16,0),rgba(10,11,16,.85) 40%);
+}
+.bg-adjust-bar .btn{height:50px;}
+.bg-adjust-hint{
+  position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 18px);z-index:41;
+  text-align:center;color:#fff;font-size:13px;opacity:.85;pointer-events:none;
+  text-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+
+.boot-error{position:fixed;top:0;left:0;right:0;background:#e5484d;color:#fff;padding:10px 14px;font-size:13px;text-align:center;z-index:999;}
+
+@media (min-width:480px){
+  :root{--shortcut-size:58px;}
+}
+</style>
+</head>
+<body>
+
+<div id="bgLayer"></div>
+<div id="bgOverlay"></div>
+
+<div class="app">
+  <header class="topbar">
+    <button class="icon-btn" id="settingsBtn" type="button" aria-label="Customize page">
+      <svg class="i" data-icon="pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    </button>
+    <form class="searchbar" id="searchForm">
+      <button type="submit" aria-label="Search">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <input type="text" id="searchInput" placeholder="Search the web" autocomplete="off">
+    </form>
+  </header>
+
+  <main class="cards" id="cardsList"></main>
+
+  <button class="add-card-btn" id="addCardBtn" type="button">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    Add new card
+  </button>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>Customize page</h2>
+      <button class="sheet-close" type="button" data-close="settingsOverlay" aria-label="Close">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="field">
+      <label>Search engine</label>
+      <div class="pill-row" id="engineRow"></div>
+    </div>
+
+    <div class="field">
+      <label>Background image</label>
+      <div class="img-actions">
+        <label class="file-btn" for="bgImageFile">
+          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          Choose from device
+        </label>
+        <input type="file" id="bgImageFile" accept="image/*">
+        <button class="btn btn-secondary" id="clearBgImage" type="button" style="flex:none;padding:0 16px;height:44px;">Clear image</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Or image URL</label>
+      <input type="url" id="bgImageUrl" placeholder="https://...">
+      <div class="btn-row">
+        <button class="btn btn-primary" id="applyBgImageUrl" type="button">Apply URL</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="bg-adjust-capture" id="bgAdjustCapture" style="display:none;"></div>
+<div class="bg-adjust-hint" id="bgAdjustHint" style="display:none;">Drag to move, pinch to zoom</div>
+<div class="bg-adjust-bar" id="bgAdjustBar" style="display:none;">
+  <button class="btn btn-secondary" id="cancelBgAdjust" type="button">Cancel</button>
+  <button class="btn btn-primary" id="confirmBgAdjust" type="button">Confirm</button>
+</div>
+
+<div class="overlay" id="shortcutOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="shortcutSheetTitle">Add shortcut</h2>
+      <button class="sheet-close" type="button" data-close="shortcutOverlay" aria-label="Close">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="shortcutName" placeholder="e.g. YouTube">
+    </div>
+    <div class="field">
+      <label>URL</label>
+      <input type="url" id="shortcutUrl" placeholder="example.com">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="deleteShortcutBtn" type="button" style="display:none;">Delete</button>
+      <button class="btn btn-primary" id="saveShortcutBtn" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="cardOptionsOverlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>Card color</h2>
+      <button class="sheet-close" type="button" data-close="cardOptionsOverlay" aria-label="Close">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="field">
+      <div class="swatch-row" id="cardSwatchRow"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="deleteCardBtn" type="button">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Delete card
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function initSpeedDial(){
+  "use strict";
+
+  var ICONS = {
+    ellipsis:'<svg class="i" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+    plus:'<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+    globe:'<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg>'
+  };
+
+  var ENGINES = {
+    google:{name:"Google", url:"https://www.google.com/search?q="},
+    bing:{name:"Bing", url:"https://www.bing.com/search?q="},
+    ddg:{name:"DuckDuckGo", url:"https://duckduckgo.com/?q="},
+    yahoo:{name:"Yahoo", url:"https://search.yahoo.com/search?p="}
+  };
+
+  var PRESET_COLORS = ["#3B4A6B","#4C7EFF","#2F8F7A","#C15B3E","#8B5CF6","#D9A441","#5C6470","#E0526B"];
+
+  function hexToRgba(hex, alpha){
+    hex = hex.replace("#","");
+    if(hex.length === 3) hex = hex.split("").map(function(c){return c+c;}).join("");
+    var r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+    return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+  }
+
+  var STORAGE_KEY = "speedDialState_v1";
+  var defaultState = {
+    engine:"google",
+    bgColor:"#12141c",
+    bgImage:null,
+    cards:[
+      { id:"c1", color:"#4C7EFF", shortcuts:[
+        { id:"s1", name:"YouTube", url:"https://youtube.com" },
+        { id:"s2", name:"Gmail", url:"https://mail.google.com" }
+      ]}
+    ]
+  };
+
+  var state = loadState();
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return JSON.parse(JSON.stringify(defaultState));
+  }
+
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+  function normalizeUrl(u){
+    u = (u||"").trim();
+    if(!u) return "";
+    if(!/^https?:\/\//i.test(u)) u = "https://" + u;
+    return u;
+  }
+
+  function hostnameOf(u){
+    try{ return new URL(u).hostname; }catch(e){ return null; }
+  }
+
+  function contrastColor(hex){
+    hex = hex.replace("#","");
+    if(hex.length === 3) hex = hex.split("").map(function(c){return c+c;}).join("");
+    var r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+    var lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+    return lum > 0.6 ? "#141620" : "#f5f6fa";
+  }
+
+  var bgLayer = document.getElementById("bgLayer");
+  var bgOverlay = document.getElementById("bgOverlay");
+
+  function applyTheme(){
+    bgLayer.style.backgroundColor = state.bgColor || defaultState.bgColor;
+    if(state.bgImage){
+      bgLayer.style.backgroundImage = "url(" + state.bgImage + ")";
+      bgLayer.style.backgroundSize = state.bgSize || "cover";
+      bgLayer.style.backgroundPosition = state.bgPosition || "center";
+      bgOverlay.style.background = "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0))";
+    }else{
+      bgLayer.style.backgroundImage = "none";
+      bgLayer.style.backgroundSize = "";
+      bgLayer.style.backgroundPosition = "";
+      bgOverlay.style.background = "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0))";
+    }
+  }
+
+  function openSheet(id){
+    document.getElementById(id).classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+  function closeSheet(id){
+    document.getElementById(id).classList.remove("open");
+    document.body.style.overflow = "";
+  }
+  var closeButtons = document.querySelectorAll("[data-close]");
+  for(var ci=0; ci<closeButtons.length; ci++){
+    (function(btn){
+      btn.addEventListener("click", function(){ closeSheet(btn.getAttribute("data-close")); });
+    })(closeButtons[ci]);
+  }
+  var overlays = document.querySelectorAll(".overlay");
+  for(var oi=0; oi<overlays.length; oi++){
+    (function(ov){
+      ov.addEventListener("click", function(e){ if(e.target === ov) closeSheet(ov.id); });
+    })(overlays[oi]);
+  }
+
+  document.getElementById("searchForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var q = document.getElementById("searchInput").value.trim();
+    if(!q) return;
+    var engine = ENGINES[state.engine] || ENGINES.google;
+    location.href = engine.url + encodeURIComponent(q);
+  });
+
+  var engineRow = document.getElementById("engineRow");
+  function renderEngineRow(){
+    engineRow.innerHTML = "";
+    Object.keys(ENGINES).forEach(function(key){
+      var pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "pill" + (state.engine === key ? " active" : "");
+      pill.textContent = ENGINES[key].name;
+      pill.addEventListener("click", function(){
+        state.engine = key;
+        saveState();
+        renderEngineRow();
+      });
+      engineRow.appendChild(pill);
+    });
+  }
+
+  document.getElementById("bgImageFile").addEventListener("change", function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      openBgAdjust(reader.result);
+      e.target.value = "";
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById("clearBgImage").addEventListener("click", function(){
+    state.bgImage = null;
+    state.bgSize = null;
+    state.bgPosition = null;
+    document.getElementById("bgImageUrl").value = "";
+    saveState(); applyTheme();
+  });
+
+  document.getElementById("applyBgImageUrl").addEventListener("click", function(){
+    var val = document.getElementById("bgImageUrl").value.trim();
+    if(!val) return;
+    openBgAdjust(val);
+  });
+
+  var bgAdjustCapture = document.getElementById("bgAdjustCapture");
+  var bgAdjustBar = document.getElementById("bgAdjustBar");
+  var bgAdjustHint = document.getElementById("bgAdjustHint");
+  var appEl = document.querySelector(".app");
+  var pendingBgSrc = null;
+  var adjNaturalW = 0, adjNaturalH = 0;
+  var adjBaseW = 0, adjBaseH = 0;
+  var adjTx = 0, adjTy = 0;
+  var adjZoom = 1;
+  var MIN_ZOOM = 1, MAX_ZOOM = 4;
+
+  var gesture = null;
+
+  function dist(t1, t2){ return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY); }
+  function mid(t1, t2){ return { x:(t1.clientX + t2.clientX)/2, y:(t1.clientY + t2.clientY)/2 }; }
+
+  function openBgAdjust(src){
+    closeSheet("settingsOverlay");
+    pendingBgSrc = src;
+    var img = new Image();
+    img.onload = function(){
+      adjNaturalW = img.naturalWidth || 1;
+      adjNaturalH = img.naturalHeight || 1;
+      var vw = window.innerWidth, vh = window.innerHeight;
+      var coverScale = Math.max(vw / adjNaturalW, vh / adjNaturalH);
+      adjBaseW = adjNaturalW * coverScale;
+      adjBaseH = adjNaturalH * coverScale;
+      adjZoom = 1;
+      adjTx = (vw - adjBaseW) / 2;
+      adjTy = (vh - adjBaseH) / 2;
+
+      bgLayer.style.backgroundImage = "url(" + src + ")";
+      renderBgAdjust();
+
+      if(appEl) appEl.style.display = "none";
+      bgAdjustCapture.style.display = "block";
+      bgAdjustBar.style.display = "flex";
+      bgAdjustHint.style.display = "block";
+    };
+    img.src = src;
+  }
+
+  function clampAdjustPos(){
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var dispW = adjBaseW * adjZoom, dispH = adjBaseH * adjZoom;
+    var minTx = vw - dispW, minTy = vh - dispH;
+    if(adjTx > 0) adjTx = 0;
+    if(adjTx < minTx) adjTx = minTx;
+    if(adjTy > 0) adjTy = 0;
+    if(adjTy < minTy) adjTy = minTy;
+  }
+
+  function renderBgAdjust(){
+    clampAdjustPos();
+    var dispW = adjBaseW * adjZoom, dispH = adjBaseH * adjZoom;
+    bgLayer.style.backgroundSize = dispW + "px " + dispH + "px";
+    bgLayer.style.backgroundPosition = adjTx + "px " + adjTy + "px";
+  }
+
+  function startGesture(e){
+    var touches = e.touches;
+    if(touches && touches.length >= 2){
+      var d0 = dist(touches[0], touches[1]);
+      var m0 = mid(touches[0], touches[1]);
+      var dispW0 = adjBaseW * adjZoom, dispH0 = adjBaseH * adjZoom;
+      gesture = {
+        mode:"pinch", dist0: d0 || 1, zoom0: adjZoom,
+        fx: (m0.x - adjTx) / dispW0, fy: (m0.y - adjTy) / dispH0
+      };
+    }else{
+      var p = touches ? touches[0] : e;
+      gesture = { mode:"pan", startX:p.clientX, startY:p.clientY, tx0:adjTx, ty0:adjTy };
+    }
+  }
+  function moveGesture(e){
+    if(!gesture) return;
+    var touches = e.touches;
+    if(gesture.mode === "pinch" && touches && touches.length >= 2){
+      var d1 = dist(touches[0], touches[1]);
+      var m1 = mid(touches[0], touches[1]);
+      var newZoom = gesture.zoom0 * (d1 / gesture.dist0);
+      if(newZoom < MIN_ZOOM) newZoom = MIN_ZOOM;
+      if(newZoom > MAX_ZOOM) newZoom = MAX_ZOOM;
+      var newDispW = adjBaseW * newZoom, newDispH = adjBaseH * newZoom;
+      adjZoom = newZoom;
+      adjTx = m1.x - gesture.fx * newDispW;
+      adjTy = m1.y - gesture.fy * newDispH;
+      renderBgAdjust();
+    }else if(gesture.mode === "pan"){
+      var p = touches ? touches[0] : e;
+      adjTx = gesture.tx0 + (p.clientX - gesture.startX);
+      adjTy = gesture.ty0 + (p.clientY - gesture.startY);
+      renderBgAdjust();
+    }
+  }
+  function endGesture(e){
+    var touches = e.touches;
+    if(touches && touches.length > 0){
+      startGesture(e);
+    }else{
+      gesture = null;
+    }
+  }
+
+  bgAdjustCapture.addEventListener("touchstart", startGesture, {passive:true});
+  bgAdjustCapture.addEventListener("touchmove", moveGesture, {passive:true});
+  bgAdjustCapture.addEventListener("touchend", endGesture);
+  bgAdjustCapture.addEventListener("touchcancel", endGesture);
+  bgAdjustCapture.addEventListener("mousedown", startGesture);
+  window.addEventListener("mousemove", function(e){ if(gesture && gesture.mode === "pan" && !e.touches) moveGesture(e); });
+  window.addEventListener("mouseup", function(e){ if(gesture && !e.touches) gesture = null; });
+  bgAdjustCapture.addEventListener("wheel", function(e){
+    e.preventDefault();
+    var newZoom = adjZoom - e.deltaY * 0.0015;
+    if(newZoom < MIN_ZOOM) newZoom = MIN_ZOOM;
+    if(newZoom > MAX_ZOOM) newZoom = MAX_ZOOM;
+    var dispW0 = adjBaseW * adjZoom, dispH0 = adjBaseH * adjZoom;
+    var fx = (e.clientX - adjTx) / dispW0, fy = (e.clientY - adjTy) / dispH0;
+    var newDispW = adjBaseW * newZoom, newDispH = adjBaseH * newZoom;
+    adjZoom = newZoom;
+    adjTx = e.clientX - fx * newDispW;
+    adjTy = e.clientY - fy * newDispH;
+    renderBgAdjust();
+  }, {passive:false});
+
+  function closeBgAdjustUI(){
+    gesture = null;
+    if(appEl) appEl.style.display = "";
+    bgAdjustCapture.style.display = "none";
+    bgAdjustBar.style.display = "none";
+    bgAdjustHint.style.display = "none";
+  }
+
+  document.getElementById("cancelBgAdjust").addEventListener("click", function(){
+    pendingBgSrc = null;
+    closeBgAdjustUI();
+    applyTheme();
+  });
+
+  document.getElementById("confirmBgAdjust").addEventListener("click", function(){
+    if(!pendingBgSrc){ closeBgAdjustUI(); return; }
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var dispW = adjBaseW * adjZoom, dispH = adjBaseH * adjZoom;
+    var sizeW = (dispW / vw) * 100;
+    var sizeH = (dispH / vh) * 100;
+    var posX = (vw - dispW) === 0 ? 50 : (adjTx / (vw - dispW)) * 100;
+    var posY = (vh - dispH) === 0 ? 50 : (adjTy / (vh - dispH)) * 100;
+    state.bgImage = pendingBgSrc;
+    state.bgSize = sizeW.toFixed(2) + "% " + sizeH.toFixed(2) + "%";
+    state.bgPosition = posX.toFixed(2) + "% " + posY.toFixed(2) + "%";
+    pendingBgSrc = null;
+    saveState();
+    closeBgAdjustUI();
+    applyTheme();
+  });
+
+  document.getElementById("settingsBtn").addEventListener("click", function(){
+    renderEngineRow();
+    openSheet("settingsOverlay");
+  });
+
+  var cardsList = document.getElementById("cardsList");
+  var activeCardId = null;
+  var editingShortcutId = null;
+
+  function renderCards(){
+    cardsList.innerHTML = "";
+    if(state.cards.length === 0){
+      var hint = document.createElement("div");
+      hint.className = "empty-hint";
+      hint.textContent = 'No cards yet. Tap "Add new card" to get started.';
+      cardsList.appendChild(hint);
+      return;
+    }
+    state.cards.forEach(function(card){
+      cardsList.appendChild(renderCard(card));
+    });
+  }
+
+  function renderCard(card){
+    var el = document.createElement("div");
+    el.className = "card";
+    el.style.background = hexToRgba(card.color, .35);
+    el.style.color = "var(--text)";
+
+    var optionsBtn = document.createElement("button");
+    optionsBtn.type = "button";
+    optionsBtn.className = "card-options-btn";
+    optionsBtn.setAttribute("aria-label", "Card options");
+    optionsBtn.innerHTML = ICONS.ellipsis;
+    optionsBtn.addEventListener("click", function(){
+      activeCardId = card.id;
+      renderCardSwatches();
+      openSheet("cardOptionsOverlay");
+    });
+
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-shortcut-btn";
+    addBtn.setAttribute("aria-label", "Add shortcut");
+    addBtn.innerHTML = ICONS.plus;
+    addBtn.addEventListener("click", function(){
+      openShortcutSheet(card.id, null);
+    });
+
+    var scroll = document.createElement("div");
+    scroll.className = "card-scroll";
+    card.shortcuts.forEach(function(sc){
+      scroll.appendChild(renderShortcut(card, sc));
+    });
+    scroll.appendChild(addBtn);
+
+    el.appendChild(optionsBtn);
+    el.appendChild(scroll);
+    return el;
+  }
+
+  function renderShortcut(card, sc){
+    var a = document.createElement("a");
+    a.className = "shortcut";
+    a.href = sc.url;
+    a.target = "_self";
+
+    var iconWrap = document.createElement("div");
+    iconWrap.className = "shortcut-icon";
+    var host = hostnameOf(sc.url);
+    if(host){
+      var img = document.createElement("img");
+      img.src = "https://www.google.com/s2/favicons?sz=64&domain=" + encodeURIComponent(host);
+      img.alt = "";
+      img.onerror = function(){
+        iconWrap.innerHTML = ICONS.globe;
+      };
+      iconWrap.appendChild(img);
+    }else{
+      iconWrap.innerHTML = ICONS.globe;
+    }
+
+    var name = document.createElement("div");
+    name.className = "shortcut-name";
+    name.textContent = sc.name || host || sc.url;
+
+    a.appendChild(iconWrap);
+    a.appendChild(name);
+
+    var longPressTimer = null;
+    var longPressFired = false;
+
+    function startPress(){
+      longPressFired = false;
+      longPressTimer = setTimeout(function(){
+        longPressFired = true;
+        openShortcutSheet(card.id, sc.id);
+      }, 480);
+    }
+    function cancelPress(){
+      if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
+    }
+    a.addEventListener("touchstart", startPress, {passive:true});
+    a.addEventListener("touchend", cancelPress);
+    a.addEventListener("touchmove", cancelPress);
+    a.addEventListener("mousedown", startPress);
+    a.addEventListener("mouseup", cancelPress);
+    a.addEventListener("mouseleave", cancelPress);
+    a.addEventListener("click", function(e){
+      if(longPressFired){ e.preventDefault(); longPressFired = false; }
+    });
+    a.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+
+    return a;
+  }
+
+  document.getElementById("addCardBtn").addEventListener("click", function(){
+    var usedColors = state.cards.map(function(c){return c.color;});
+    var nextColor = PRESET_COLORS.filter(function(c){ return usedColors.indexOf(c) === -1; })[0] || PRESET_COLORS[state.cards.length % PRESET_COLORS.length];
+    state.cards.push({ id: uid(), color: nextColor, shortcuts: [] });
+    saveState();
+    renderCards();
+  });
+
+  var cardSwatchRow = document.getElementById("cardSwatchRow");
+  function renderCardSwatches(){
+    cardSwatchRow.innerHTML = "";
+    var card = null;
+    for(var i=0;i<state.cards.length;i++){ if(state.cards[i].id === activeCardId){ card = state.cards[i]; break; } }
+    PRESET_COLORS.forEach(function(color){
+      var sw = document.createElement("button");
+      sw.type = "button";
+      sw.className = "swatch" + (card && card.color === color ? " active" : "");
+      sw.style.background = color;
+      sw.addEventListener("click", function(){
+        if(!card) return;
+        card.color = color;
+        saveState(); renderCards(); renderCardSwatches();
+      });
+      cardSwatchRow.appendChild(sw);
+    });
+  }
+
+  document.getElementById("deleteCardBtn").addEventListener("click", function(){
+    if(!activeCardId) return;
+    state.cards = state.cards.filter(function(c){ return c.id !== activeCardId; });
+    saveState(); renderCards();
+    closeSheet("cardOptionsOverlay");
+  });
+
+  var shortcutNameInput = document.getElementById("shortcutName");
+  var shortcutUrlInput = document.getElementById("shortcutUrl");
+  var deleteShortcutBtn = document.getElementById("deleteShortcutBtn");
+  var shortcutSheetTitle = document.getElementById("shortcutSheetTitle");
+
+  function openShortcutSheet(cardId, shortcutId){
+    activeCardId = cardId;
+    editingShortcutId = shortcutId;
+    var card = null;
+    for(var i=0;i<state.cards.length;i++){ if(state.cards[i].id === cardId){ card = state.cards[i]; break; } }
+    if(shortcutId && card){
+      var sc = null;
+      for(var j=0;j<card.shortcuts.length;j++){ if(card.shortcuts[j].id === shortcutId){ sc = card.shortcuts[j]; break; } }
+      shortcutSheetTitle.textContent = "Edit shortcut";
+      shortcutNameInput.value = sc ? sc.name : "";
+      shortcutUrlInput.value = sc ? sc.url : "";
+      deleteShortcutBtn.style.display = "flex";
+    }else{
+      shortcutSheetTitle.textContent = "Add shortcut";
+      shortcutNameInput.value = "";
+      shortcutUrlInput.value = "";
+      deleteShortcutBtn.style.display = "none";
+    }
+    openSheet("shortcutOverlay");
+  }
+
+  document.getElementById("saveShortcutBtn").addEventListener("click", function(){
+    var card = null;
+    for(var i=0;i<state.cards.length;i++){ if(state.cards[i].id === activeCardId){ card = state.cards[i]; break; } }
+    if(!card) return;
+    var url = normalizeUrl(shortcutUrlInput.value);
+    if(!url){ shortcutUrlInput.focus(); return; }
+    var name = shortcutNameInput.value.trim() || hostnameOf(url) || url;
+
+    if(editingShortcutId){
+      var sc = null;
+      for(var j=0;j<card.shortcuts.length;j++){ if(card.shortcuts[j].id === editingShortcutId){ sc = card.shortcuts[j]; break; } }
+      if(sc){ sc.name = name; sc.url = url; }
+    }else{
+      card.shortcuts.push({ id: uid(), name: name, url: url });
+    }
+    saveState(); renderCards();
+    closeSheet("shortcutOverlay");
+  });
+
+  deleteShortcutBtn.addEventListener("click", function(){
+    var card = null;
+    for(var i=0;i<state.cards.length;i++){ if(state.cards[i].id === activeCardId){ card = state.cards[i]; break; } }
+    if(!card || !editingShortcutId) return;
+    card.shortcuts = card.shortcuts.filter(function(s){ return s.id !== editingShortcutId; });
+    saveState(); renderCards();
+    closeSheet("shortcutOverlay");
+  });
+
+  applyTheme();
+  renderCards();
+}
+
+try{
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", initSpeedDial);
+  }else{
+    initSpeedDial();
+  }
+}catch(err){
+  var banner = document.createElement("div");
+  banner.className = "boot-error";
+  banner.textContent = "An error occurred while loading the page: " + (err && err.message ? err.message : err);
+  document.body.insertBefore(banner, document.body.firstChild);
+}
+</script>
+</body>
+</html>
