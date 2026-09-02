@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12141c">
+<title>Word Guess</title>
+<style>
+:root{
+  --bg:#12141c;--surface:#1b1e29;--surface-2:#242835;--border:rgba(255,255,255,.10);
+  --text:#eef0f5;--text-dim:#9aa0b4;
+  --accent:#4c7eff;--danger:#e5484d;--good:#4caf6b;--warn:#c9a23f;
+  --radius-sm:10px;--radius-lg:16px;
+  --tile:clamp(36px, min(11vw, 8.5vh), 58px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;-webkit-appearance:none;appearance:none;border:0;background:none;color:inherit;}
+svg.i{width:1em;height:1em;display:block;flex-shrink:0;}
+.app{max-width:480px;width:100%;margin:0 auto;min-height:100vh;min-height:100dvh;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;flex-direction:column;gap:14px;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px;transition:background .15s ease;}
+.icon-btn:active{background:var(--surface-2);}
+.stat-pill{display:flex;align-items:center;gap:6px;height:40px;padding:0 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:13.5px;font-weight:600;}
+.stat-pill svg.i{width:16px;height:16px;}
+.stat-pill.streak svg.i{color:var(--warn);}
+.stat-pill.score svg.i{color:var(--accent);}
+
+/* screens */
+.screen{display:none;flex-direction:column;gap:14px;flex:1;min-height:0;}
+.screen.active{display:flex;}
+
+/* menu */
+.menu-hero{border-radius:var(--radius-lg);padding:20px;border:1px solid var(--border);background:var(--surface);text-align:center;}
+.menu-hero h1{font-size:21px;margin-bottom:4px;}
+.menu-hero p{color:var(--text-dim);font-size:13.5px;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.stat-card{border-radius:var(--radius-sm);padding:12px 6px;border:1px solid var(--border);background:var(--surface);text-align:center;}
+.stat-card b{display:block;font-size:20px;}
+.stat-card span{font-size:11px;color:var(--text-dim);}
+.btn{height:48px;border-radius:var(--radius-sm);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border);}
+.history{border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface);padding:12px;flex:1;overflow-y:auto;min-height:100px;}
+.history h3{font-size:13px;color:var(--text-dim);margin-bottom:8px;font-weight:600;}
+.hist-row{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);font-size:13px;}
+.hist-row:last-child{border-bottom:0;}
+.hist-word{font-weight:700;letter-spacing:.5px;}
+.hist-tag{padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;}
+.tag-win{background:rgba(76,175,107,.16);color:var(--good);}
+.tag-lose{background:rgba(229,72,77,.16);color:var(--danger);}
+.empty-hint{padding:18px 4px;color:var(--text-dim);font-size:13px;text-align:center;}
+
+/* game */
+.game-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;}
+#board{display:flex;flex-direction:column;gap:6px;align-items:center;margin-bottom:14px;}
+.row{display:flex;gap:6px;}
+.tile{width:var(--tile);height:var(--tile);border-radius:8px;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:calc(var(--tile) * 0.42);font-weight:700;text-transform:uppercase;transition:transform .15s ease,background .3s ease,border-color .3s ease;}
+.tile.filled{border-color:rgba(255,255,255,.32);}
+.tile.pop{animation:pop .12s ease;}
+@keyframes pop{0%{transform:scale(1);}50%{transform:scale(1.06);}100%{transform:scale(1);}}
+.tile.correct{background:var(--good);border-color:var(--good);color:#fff;}
+.tile.present{background:var(--warn);border-color:var(--warn);color:#fff;}
+.tile.absent{background:var(--surface-2);border-color:var(--surface-2);color:var(--text-dim);}
+.tile.flip{animation:flip .5s ease;}
+@keyframes flip{0%{transform:rotateX(0);}50%{transform:rotateX(90deg);}100%{transform:rotateX(0);}}
+.shake{animation:shake .35s ease;}
+@keyframes shake{10%,90%{transform:translateX(-2px);}20%,80%{transform:translateX(4px);}30%,50%,70%{transform:translateX(-8px);}40%,60%{transform:translateX(8px);}}
+
+.keyboard{display:flex;flex-direction:column;gap:8px;}
+.krow{display:flex;gap:6px;justify-content:center;}
+.key{min-width:0;height:46px;flex:1;max-width:40px;border-radius:8px;background:var(--surface-2);color:var(--text);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;text-transform:uppercase;transition:background .2s ease,transform .1s ease;}
+.key:active{transform:scale(.94);}
+.key.wide{max-width:56px;}
+.key.wide svg.i{width:18px;height:18px;}
+.key.correct{background:var(--good);color:#fff;}
+.key.present{background:var(--warn);color:#fff;}
+.key.absent{background:#0e0f16;color:var(--text-dim);}
+
+.toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;transform:translateX(-50%) translateY(-20px);background:var(--surface);border:1px solid var(--border);padding:9px 16px;border-radius:18px;font-size:13.5px;font-weight:600;opacity:0;transition:all .25s ease;z-index:100;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;}
+.overlay.open{opacity:1;pointer-events:auto;}
+.modal{width:100%;max-width:380px;background:var(--surface);border-radius:var(--radius-lg);padding:22px 20px;text-align:center;transform:scale(.92);transition:transform .25s cubic-bezier(.32,.72,0,1);border:1px solid var(--border);}
+.overlay.open .modal{transform:scale(1);}
+.modal-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
+.modal-icon svg.i{width:24px;height:24px;}
+.modal-icon.win{background:rgba(76,175,107,.16);color:var(--good);}
+.modal-icon.lose{background:rgba(229,72,77,.16);color:var(--danger);}
+.modal h2{font-size:19px;margin-bottom:6px;}
+.modal p{color:var(--text-dim);font-size:13.5px;margin-bottom:14px;}
+.modal .word-reveal{font-size:24px;font-weight:800;letter-spacing:3px;color:var(--accent);margin-bottom:14px;}
+
+@media (max-height:640px){
+  .menu-hero{padding:14px;}
+  .menu-hero h1{font-size:18px;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <button class="icon-btn" id="menuBtn" aria-label="Menu">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div style="display:flex;gap:8px;">
+      <div class="stat-pill streak">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17a2.5 2.5 0 0 0 2.5-2.5c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+        <span id="streakPill">0</span>
+      </div>
+      <div class="stat-pill score">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span id="scorePill">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MENU SCREEN -->
+  <section class="screen active" id="menuScreen">
+    <div class="menu-hero">
+      <h1>Word Guess</h1>
+      <p>Guess the 5-letter English word in 6 tries</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><b id="statPlayed">0</b><span>Played</span></div>
+      <div class="stat-card"><b id="statWinPct">0%</b><span>Win Rate</span></div>
+      <div class="stat-card"><b id="statBest">0</b><span>Best Streak</span></div>
+    </div>
+    <button class="btn btn-primary" id="playBtn">
+      <svg class="i" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+      New Game
+    </button>
+    <div class="history">
+      <h3>Game History</h3>
+      <div id="historyList"><div class="empty-hint">No games played yet</div></div>
+    </div>
+  </section>
+
+  <!-- GAME SCREEN -->
+  <section class="screen" id="gameScreen">
+    <div class="game-wrap">
+      <div id="board"></div>
+      <div class="keyboard" id="keyboard"></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="endOverlay">
+  <div class="modal">
+    <div class="modal-icon" id="endIconWrap">
+      <svg class="i" id="endIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+    </div>
+    <h2 id="endTitle"></h2>
+    <p id="endSub"></p>
+    <div class="word-reveal" id="endWord"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" style="flex:1" id="endMenuBtn">Menu</button>
+      <button class="btn btn-primary" style="flex:1" id="endPlayBtn">New Game</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var WORDS = ["about","above","abuse","actor","acute","admit","adopt","adult","after","again","agent","agree","ahead","alarm","album","alert","alike","alive","allow","alone","along","alter","among","anger","angle","angry","apart","apple","apply","arena","argue","arise","array","aside","asset","audio","audit","avoid","award","aware","badly","baker","bases","basic","basis","beach","began","begin","being","below","bench","billy","birth","black","blame","blank","blast","blend","blind","block","blood","board","boost","booth","bound","brain","brand","bread","break","breed","brief","bring","broad","broke","brown","build","built","buyer","cable","calif","carry","catch","cause","chain","chair","chart","chase","cheap","check","chest","chief","child","china","chose","civil","claim","class","clean","clear","climb","clock","close","coach","coast","could","count","court","cover","craft","crash","cream","crime","cross","crowd","crown","curve","cycle","daily","dance","dated","dealt","death","debut","delay","depth","doing","doubt","dozen","draft","drama","drawn","dream","dress","drill","drink","drive","drove","dying","eager","early","earth","eight","elite","empty","enemy","enjoy","enter","entry","equal","error","event","every","exact","exist","extra","faith","fault","fibre","field","fifth","fifty","fight","final","first","fixed","flash","fleet","floor","fluid","focus","force","forth","forty","forum","found","frame","frank","fraud","fresh","front","fruit","fully","funny","giant","given","glass","globe","going","grace","grade","grand","grant","grass","great","green","gross","group","grown","guard","guess","guest","guide","happy","harsh","heart","heavy","hence","henry","horse","hotel","house","human","ideal","image","index","inner","input","issue","japan","jimmy","joint","jones","judge","known","label","large","laser","later","laugh","layer","learn","lease","least","leave","legal","level","light","limit","links","lives","local","loose","lower","lucky","lunch","lying","magic","major","maker","march","maria","match","maybe","mayor","meant","media","metal","might","minor","minus","mixed","model","money","month","moral","motor","mount","mouse","mouth","moved","movie","music","needs","never","newly","night","noise","north","noted","novel","nurse","occur","ocean","offer","often","order","other","ought","paint","panel","paper","party","peace","phase","phone","photo","piece","pilot","pitch","place","plain","plane","plant","plate","point","pound","power","press","price","pride","prime","print","prior","prize","proof","proud","prove","queen","quick","quiet","quite","radio","raise","range","rapid","ratio","reach","ready","refer","relax","reply","right","rival","river","robot","roger","roman","rough","round","route","royal","rural","scale","scene","scope","score","sense","serve","seven","shall","shape","share","sharp","sheet","shelf","shell","shift","shine","shirt","shock","shoot","short","shown","sight","since","sixth","sixty","sized","skill","sleep","slide","small","smart","smile","smith","smoke","solid","solve","sorry","sound","south","space","spare","speak","speed","spend","spent","split","spoke","sport","staff","stage","stake","stand","start","state","steam","steel","stick","still","stock","stone","stood","store","storm","story","strip","stuck","study","stuff","style","sugar","suite","super","sweet","table","taken","taste","taxes","teach","teeth","terry","texas","thank","theft","their","theme","there","these","thick","thing","think","third","those","three","threw","throw","tight","times","tired","title","today","topic","total","touch","tough","tower","track","trade","train","treat","trend","trial","tried","tries","truck","truly","trust","truth","twice","under","undue","union","unity","until","upper","upset","urban","usage","usual","valid","value","video","virus","visit","vital","voice","waste","watch","water","wheel","where","which","while","white","whole","whose","woman","women","world","worry","worse","worst","worth","would","wound","write","wrong","wrote","young","youth"];
+var WORD_SET = new Set(WORDS);
+
+var LS_KEY = "wg_state_v1";
+var state = null;
+
+function defaultState(){
+  return { played:0, wins:0, bestStreak:0, curStreak:0, points:0, history:[] };
+}
+function loadState(){
+  try{
+    var raw = localStorage.getItem(LS_KEY);
+    if(raw) return Object.assign(defaultState(), JSON.parse(raw));
+  }catch(e){}
+  return defaultState();
+}
+function saveState(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+state = loadState();
+
+var secret = "", guesses = [], curGuess = "", row = 0, gameOver = false;
+var MAX_ROWS = 6, WORD_LEN = 5;
+
+var boardEl = document.getElementById("board");
+var keyboardEl = document.getElementById("keyboard");
+var menuScreen = document.getElementById("menuScreen");
+var gameScreen = document.getElementById("gameScreen");
+var toastEl = document.getElementById("toast");
+
+var ICON_ENTER = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>';
+var ICON_DEL = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>';
+var ICON_CHECK = '<path d="M20 6L9 17l-5-5"/>';
+var ICON_X = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(function(){ toastEl.classList.remove("show"); }, 1400);
+}
+
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+  document.getElementById(id).classList.add("active");
+}
+
+function updateHeader(){
+  document.getElementById("streakPill").textContent = state.curStreak;
+  document.getElementById("scorePill").textContent = state.points;
+}
+
+function renderMenu(){
+  document.getElementById("statPlayed").textContent = state.played;
+  document.getElementById("statWinPct").textContent = state.played ? Math.round(state.wins/state.played*100)+"%" : "0%";
+  document.getElementById("statBest").textContent = state.bestStreak;
+  var list = document.getElementById("historyList");
+  if(!state.history.length){
+    list.innerHTML = '<div class="empty-hint">No games played yet</div>';
+  }else{
+    list.innerHTML = "";
+    state.history.slice().reverse().slice(0,20).forEach(function(h){
+      var r = document.createElement("div");
+      r.className = "hist-row";
+      r.innerHTML = '<span class="hist-word">'+h.word.toUpperCase()+'</span><span style="color:var(--text-dim)">'+h.date+'</span><span class="hist-tag '+(h.won?"tag-win":"tag-lose")+'">'+(h.won?("Win \u2022 "+h.tries):"Loss")+'</span>';
+      list.appendChild(r);
+    });
+  }
+  updateHeader();
+}
+
+function buildBoard(){
+  boardEl.innerHTML = "";
+  for(var r=0;r<MAX_ROWS;r++){
+    var rowEl = document.createElement("div");
+    rowEl.className = "row";
+    rowEl.id = "row"+r;
+    for(var c=0;c<WORD_LEN;c++){
+      var t = document.createElement("div");
+      t.className = "tile";
+      t.id = "tile"+r+"-"+c;
+      rowEl.appendChild(t);
+    }
+    boardEl.appendChild(rowEl);
+  }
+}
+
+var KROWS = ["qwertyuiop","asdfghjkl","zxcvbnm"];
+function buildKeyboard(){
+  keyboardEl.innerHTML = "";
+  KROWS.forEach(function(krow, i){
+    var r = document.createElement("div");
+    r.className = "krow";
+    if(i===2){
+      var del = document.createElement("button");
+      del.className = "key wide";
+      del.id = "key-del";
+      del.innerHTML = ICON_DEL;
+      del.setAttribute("aria-label","Delete");
+      del.addEventListener("click", function(){ onDelete(); });
+      r.appendChild(del);
+    }
+    krow.split("").forEach(function(ch){
+      var k = document.createElement("button");
+      k.className = "key";
+      k.textContent = ch;
+      k.id = "key-"+ch;
+      k.addEventListener("click", function(){ onLetter(ch); });
+      r.appendChild(k);
+    });
+    if(i===2){
+      var enter = document.createElement("button");
+      enter.className = "key wide";
+      enter.id = "key-enter";
+      enter.innerHTML = ICON_ENTER;
+      enter.setAttribute("aria-label","Enter");
+      enter.addEventListener("click", function(){ onEnter(); });
+      r.appendChild(enter);
+    }
+    keyboardEl.appendChild(r);
+  });
+}
+
+function newGame(){
+  secret = WORDS[Math.floor(Math.random()*WORDS.length)];
+  guesses = []; curGuess = ""; row = 0; gameOver = false;
+  buildBoard(); buildKeyboard();
+  showScreen("gameScreen");
+}
+
+function onLetter(ch){
+  if(gameOver || curGuess.length>=WORD_LEN) return;
+  curGuess += ch;
+  var t = document.getElementById("tile"+row+"-"+(curGuess.length-1));
+  t.textContent = ch;
+  t.classList.add("filled","pop");
+  setTimeout(function(){ t.classList.remove("pop"); }, 120);
+}
+function onDelete(){
+  if(gameOver || curGuess.length===0) return;
+  var idx = curGuess.length-1;
+  var t = document.getElementById("tile"+row+"-"+idx);
+  t.textContent = ""; t.classList.remove("filled");
+  curGuess = curGuess.slice(0,-1);
+}
+
+function onEnter(){
+  if(gameOver) return;
+  if(curGuess.length < WORD_LEN){
+    shakeRow(); toast("Complete the word"); return;
+  }
+  if(!WORD_SET.has(curGuess)){
+    shakeRow(); toast("Not in word list"); return;
+  }
+  evaluateGuess(curGuess);
+}
+
+function shakeRow(){
+  var r = document.getElementById("row"+row);
+  r.classList.add("shake");
+  setTimeout(function(){ r.classList.remove("shake"); }, 350);
+}
+
+function evaluateGuess(guess){
+  var secretArr = secret.split("");
+  var guessArr = guess.split("");
+  var result = new Array(WORD_LEN).fill("absent");
+  var used = new Array(WORD_LEN).fill(false);
+
+  for(var i=0;i<WORD_LEN;i++){
+    if(guessArr[i]===secretArr[i]){ result[i]="correct"; used[i]=true; }
+  }
+  for(var i=0;i<WORD_LEN;i++){
+    if(result[i]==="correct") continue;
+    for(var j=0;j<WORD_LEN;j++){
+      if(!used[j] && guessArr[i]===secretArr[j]){ result[i]="present"; used[j]=true; break; }
+    }
+  }
+
+  guesses.push(guess);
+
+  for(var c=0;c<WORD_LEN;c++){
+    (function(c){
+      setTimeout(function(){
+        var t = document.getElementById("tile"+row+"-"+c);
+        t.classList.add("flip");
+        setTimeout(function(){
+          t.classList.add(result[c]);
+          updateKey(guessArr[c], result[c]);
+        }, 250);
+      }, c*150);
+    })(c);
+  }
+
+  var totalDelay = WORD_LEN*150 + 500;
+  var won = guess === secret;
+
+  setTimeout(function(){
+    if(won){
+      endGame(true);
+    }else if(row === MAX_ROWS-1){
+      endGame(false);
+    }else{
+      row++; curGuess="";
+    }
+  }, totalDelay);
+}
+
+function updateKey(ch, res){
+  var k = document.getElementById("key-"+ch);
+  if(!k) return;
+  var priority = {absent:0, present:1, correct:2};
+  var cur = k.dataset.state || "";
+  if(priority[res] >= (priority[cur]||0)){
+    k.classList.remove("correct","present","absent");
+    k.classList.add(res);
+    k.dataset.state = res;
+  }
+}
+
+function endGame(won){
+  gameOver = true;
+  state.played++;
+  if(won){
+    state.wins++;
+    state.curStreak++;
+    if(state.curStreak > state.bestStreak) state.bestStreak = state.curStreak;
+    var pts = Math.max(10, (MAX_ROWS-row)*20);
+    state.points += pts;
+  }else{
+    state.curStreak = 0;
+  }
+  var d = new Date();
+  state.history.push({ word: secret, won: won, tries: row+1, date: d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0") });
+  if(state.history.length>50) state.history = state.history.slice(-50);
+  saveState();
+  updateHeader();
+
+  var iconWrap = document.getElementById("endIconWrap");
+  var icon = document.getElementById("endIcon");
+  iconWrap.className = "modal-icon " + (won ? "win" : "lose");
+  icon.innerHTML = won ? ICON_CHECK : ICON_X;
+
+  document.getElementById("endTitle").textContent = won ? "Nice!" : "Not this time";
+  document.getElementById("endSub").textContent = won ? "Guessed in "+(row+1)+" tries" : "The word was:";
+  document.getElementById("endWord").textContent = secret.toUpperCase();
+  document.getElementById("endOverlay").classList.add("open");
+}
+
+document.addEventListener("keydown", function(e){
+  if(!gameScreen.classList.contains("active")) return;
+  if(document.getElementById("endOverlay").classList.contains("open")) return;
+  if(e.key === "Enter"){ onEnter(); }
+  else if(e.key === "Backspace"){ onDelete(); }
+  else if(/^[a-zA-Z]$/.test(e.key)){ onLetter(e.key.toLowerCase()); }
+});
+
+document.getElementById("playBtn").addEventListener("click", newGame);
+document.getElementById("menuBtn").addEventListener("click", function(){ renderMenu(); showScreen("menuScreen"); });
+document.getElementById("endMenuBtn").addEventListener("click", function(){
+  document.getElementById("endOverlay").classList.remove("open");
+  renderMenu(); showScreen("menuScreen");
+});
+document.getElementById("endPlayBtn").addEventListener("click", function(){
+  document.getElementById("endOverlay").classList.remove("open");
+  newGame();
+});
+
+renderMenu();
+updateHeader();
+})();
+</script>
+</body>
+</html>
